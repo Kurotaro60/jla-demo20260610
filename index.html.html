@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>負荷試験 現場記録デモ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    font-family: "Noto Sans CJK JP", "Hiragino Sans", -apple-system, sans-serif;
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+    min-height: 100vh; color: #1a202c; overflow-x: hidden;
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 24px 20px 80px; }
+  header { text-align: center; margin-bottom: 28px; }
+  header .doc-label { color: #4a5568; font-size: 12px; letter-spacing: 0.1em; margin-bottom: 8px; }
+  header h1 { color: #1a365d; font-size: 27px; margin-bottom: 8px; }
+  header .subtitle { color: #4a5568; font-size: 14px; }
+  .stage { display: grid; grid-template-columns: 1fr 380px 1fr; gap: 24px; align-items: flex-start; }
+  .side-panel { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .side-panel h3 { color: #1a365d; font-size: 14px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #1a365d; }
+  .side-panel .item { padding: 8px 0; border-bottom: 1px solid #f0f4f8; font-size: 13px; color: #4a5568; line-height: 1.55; }
+  .side-panel .item:last-child { border: none; }
+  .side-panel .item strong { color: #1a365d; }
+  .side-panel .note { font-size: 11px; color: #718096; }
+  .stat-big { font-size: 30px; font-weight: 700; color: #c05621; margin: 8px 0 2px; }
+  .stat-label { font-size: 11px; color: #718096; }
+  .phone-wrap { display: flex; justify-content: center; }
+  .phone { width: 360px; height: 720px; background: #1a202c; border-radius: 38px; padding: 12px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25), inset 0 0 0 2px #2d3748; position: relative; }
+  .phone-screen { background: #ECEEF0; border-radius: 28px; height: 100%; overflow: hidden;
+    display: flex; flex-direction: column; position: relative; }
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 110px; height: 22px;
+    background: #1a202c; border-radius: 0 0 18px 18px; z-index: 10; }
+  .status-bar { height: 28px; display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 22px 0; font-size: 11px; font-weight: 600; color: #1a202c; flex-shrink: 0; }
+  .chat-header { background: white; border-bottom: 1px solid #e2e8f0; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .chat-header .avatar { width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #00C73C, #00A832); display: flex; align-items: center;
+    justify-content: center; color: white; font-size: 14px; font-weight: 700; }
+  .chat-header .title { font-size: 14px; font-weight: 600; color: #1a202c; }
+  .chat-header .sub { font-size: 10px; color: #00C73C; margin-top: 1px; }
+  .chat { flex: 1; overflow-y: auto; padding: 12px; background: #ECEEF0; scroll-behavior: smooth; }
+  .chat::-webkit-scrollbar { width: 4px; }
+  .chat::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+  .msg { display: flex; margin-bottom: 8px; animation: fadeIn 0.3s ease-out; align-items: flex-end; gap: 6px; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.bot { justify-content: flex-start; }
+  .msg.user { justify-content: flex-end; }
+  .avatar-small { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; display: flex;
+    align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 700; }
+  .avatar-small.bot { background: linear-gradient(135deg, #00C73C, #00A832); }
+  .bubble { max-width: 75%; padding: 9px 12px; border-radius: 14px; font-size: 13px; line-height: 1.5;
+    white-space: pre-wrap; word-wrap: break-word; }
+  .msg.bot .bubble { background: white; color: #1a202c; border-bottom-left-radius: 4px; }
+  .msg.user .bubble { background: #00C73C; color: white; border-bottom-right-radius: 4px; }
+  .msg .time { font-size: 9px; color: #718096; margin: 0 4px; flex-shrink: 0; align-self: flex-end; padding-bottom: 2px; }
+  .typing { display: inline-flex; gap: 3px; padding: 12px 14px; background: white; border-radius: 14px; border-bottom-left-radius: 4px; }
+  .typing span { width: 6px; height: 6px; border-radius: 50%; background: #a0aec0; animation: dotbounce 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: 0.15s; }
+  .typing span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes dotbounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-5px); opacity: 1; } }
+  .photo-bubble { background: white; border-radius: 12px; padding: 4px; max-width: 200px; overflow: hidden; }
+  .msg.user .photo-bubble { background: rgba(255,255,255,0.95); }
+  .photo-preview { border-radius: 8px; overflow: hidden; background: linear-gradient(135deg, #4a5568, #2d3748);
+    aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; color: white;
+    flex-direction: column; gap: 6px; position: relative; }
+  .photo-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+  .photo-preview .icon { font-size: 30px; }
+  .photo-preview .label { font-size: 11px; background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 8px; }
+  .photo-meta { padding: 6px 8px 4px; font-size: 10px; color: #718096; display: flex; justify-content: space-between; }
+  .card-bubble { background: white; border-radius: 12px; border-bottom-left-radius: 4px; overflow: hidden; max-width: 260px; }
+  .card-header { background: linear-gradient(135deg, #00C73C, #00A832); color: white; padding: 10px 12px;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .card-body { padding: 10px 12px; }
+  .card-field { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; border-bottom: 1px dashed #f0f4f8; gap: 10px; }
+  .card-field:last-child { border: none; }
+  .card-field .label { color: #718096; }
+  .card-field .value { color: #1a202c; font-weight: 600; text-align: right; }
+  .data-card { background: white; border-radius: 12px; border-bottom-left-radius: 4px; overflow: hidden; max-width: 280px; }
+  .data-card .data-header { background: #1a365d; color: white; padding: 8px 12px; font-size: 11px; font-weight: 600;
+    display: flex; justify-content: space-between; }
+  .data-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: #e2e8f0; }
+  .data-cell { background: white; padding: 8px 6px; text-align: center; }
+  .data-cell.head { background: #f7fafc; font-size: 10px; color: #718096; font-weight: 600; }
+  .data-cell .v { font-size: 13px; font-weight: 700; color: #1a365d; }
+  .check-row { background: #f0fdf4; color: #15803d; padding: 6px 12px; font-size: 11px; font-weight: 600;
+    display: flex; align-items: center; gap: 4px; }
+  .quick-reply { padding: 6px 4px 4px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; animation: fadeIn 0.3s ease-out; }
+  .quick-reply button { background: white; border: 1.5px solid #00C73C; color: #00A832; padding: 8px 15px;
+    border-radius: 18px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+  .quick-reply button:hover { background: #00C73C; color: white; }
+  .quick-reply button:active { transform: scale(0.96); }
+  .input-prompt { background: white; border-radius: 12px; border-bottom-left-radius: 4px; padding: 10px 12px;
+    max-width: 250px; animation: fadeIn 0.3s ease-out; }
+  .input-prompt .label { font-size: 10px; color: #718096; margin-bottom: 6px; }
+  .input-prompt textarea { width: 100%; border: 1px solid #cbd5e0; border-radius: 8px; padding: 7px 9px;
+    font-family: inherit; font-size: 13px; line-height: 1.4; resize: none; color: #1a202c; }
+  .input-prompt textarea:focus { outline: none; border-color: #00C73C; }
+  .input-prompt .send { margin-top: 7px; background: #00C73C; color: white; border: none; padding: 7px 14px;
+    border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; }
+  .input-prompt .send:active { transform: scale(0.97); }
+  .photo-prompt { animation: fadeIn 0.3s ease-out; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; padding: 4px 4px 2px; }
+  .photo-btn { background: white; border: 1.5px dashed #00C73C; color: #00A832; padding: 10px 16px;
+    border-radius: 14px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex;
+    align-items: center; gap: 6px; transition: all 0.15s; }
+  .photo-btn:hover { background: #f0fdf4; }
+  .photo-btn:active { transform: scale(0.97); }
+  .photo-skip { background: transparent; border: none; color: #a0aec0; font-size: 11px; font-family: inherit;
+    text-decoration: underline; cursor: pointer; padding: 4px; }
+  .photo-skip:hover { color: #718096; }
+  .saving { background: white; border-radius: 12px; padding: 13px 16px; display: flex; align-items: center; gap: 10px; max-width: 250px; }
+  .saving .spinner { width: 16px; height: 16px; border: 2px solid #f0f4f8; border-top-color: #00C73C; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .saving .text { font-size: 12px; color: #1a202c; }
+  .saving .text small { display: block; color: #718096; font-size: 10px; margin-top: 1px; }
+  .completion-card { background: linear-gradient(135deg, #fff, #f5fbf7); border: 2px solid #00A832;
+    border-radius: 14px; padding: 14px; max-width: 280px; }
+  .completion-title { color: #00863a; font-weight: 700; font-size: 13px; margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .completion-sub { font-size: 11px; color: #4a5568; margin-bottom: 10px; line-height: 1.5; }
+  .completion-card button { background: #1a365d; color: white; border: none; padding: 9px 14px; border-radius: 8px;
+    font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .completion-card button:hover { background: #12294a; }
+  .completion-card button:active { transform: scale(0.97); }
+  .input-bar { background: white; border-top: 1px solid #e2e8f0; padding: 8px 12px; display: flex;
+    align-items: center; gap: 8px; flex-shrink: 0; }
+  .input-bar .input-fake { flex: 1; background: #f0f4f8; border-radius: 18px; padding: 8px 14px; font-size: 12px; color: #a0aec0; }
+  .input-bar .icon-btn { width: 30px; height: 30px; border-radius: 50%; background: #f0f4f8; display: flex;
+    align-items: center; justify-content: center; font-size: 14px; color: #4a5568; }
+  .controls { margin-top: 18px; display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .controls .hint { font-size: 12px; color: #718096; }
+  .ctrl-btn { background: white; border: 1.5px solid #cbd5e0; color: #1a365d; padding: 9px 16px; border-radius: 8px;
+    font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .ctrl-btn:hover { background: #1a365d; color: white; border-color: #1a365d; }
+  .timer { background: #1a365d; color: white; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .notion-overlay { position: fixed; inset: 0; background: rgba(15, 22, 36, 0.55); backdrop-filter: blur(4px);
+    display: none; align-items: flex-start; justify-content: center; z-index: 100; padding: 32px 16px; overflow-y: auto; animation: fadeIn 0.3s; }
+  .notion-overlay.show { display: flex; }
+  .notion-doc { background: white; border-radius: 8px; max-width: 720px; width: 100%;
+    box-shadow: 0 24px 70px rgba(0,0,0,0.35); position: relative; overflow: hidden;
+    font-family: ui-sans-serif, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", sans-serif; color: #37352f; }
+  .notion-topbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px;
+    border-bottom: 1px solid #ededec; font-size: 12px; color: #9b9a97; position: sticky; top: 0; background: white; z-index: 3; }
+  .notion-breadcrumb { display: flex; align-items: center; gap: 6px; }
+  .notion-breadcrumb .crumb { color: #6f6e69; }
+  .notion-close { background: #f1f1ef; border: none; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 14px; color: #6f6e69; }
+  .notion-close:hover { background: #e9e9e7; }
+  .notion-body { padding: 18px 44px 40px; }
+  .notion-icon { font-size: 40px; line-height: 1; margin-bottom: 8px; }
+  .notion-title { font-size: 30px; font-weight: 700; color: #37352f; margin-bottom: 16px; letter-spacing: -0.01em; }
+  .notion-callout { display: flex; gap: 10px; background: #e7f3f8; border-radius: 6px; padding: 12px 14px; margin-bottom: 22px; font-size: 13.5px; line-height: 1.6; color: #2a4d5c; }
+  .notion-callout .emoji { font-size: 18px; flex-shrink: 0; }
+  .notion-callout strong { color: #1a3a47; }
+  .copyall { display: inline-flex; align-items: center; gap: 6px; background: #2383e2; color: white; border: none;
+    padding: 7px 13px; border-radius: 6px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; margin-bottom: 18px; }
+  .copyall:hover { background: #1a6fc4; }
+  .copyall.copied { background: #0f7b3f; }
+  .prop-section { font-size: 11px; font-weight: 600; color: #9b9a97; letter-spacing: 0.04em; text-transform: uppercase;
+    margin: 20px 0 6px; padding-bottom: 5px; border-bottom: 1px solid #ededec; }
+  .prop-row { display: flex; align-items: center; gap: 10px; padding: 4px 8px; border-radius: 5px; min-height: 34px; }
+  .prop-row:hover { background: #f7f7f5; }
+  .prop-row:hover .copy-btn { opacity: 1; }
+  .prop-label { width: 168px; flex-shrink: 0; color: #9b9a97; font-size: 13.5px; display: flex; align-items: center; gap: 7px; }
+  .prop-label .pico { width: 16px; text-align: center; opacity: 0.8; }
+  .prop-value { flex: 1; color: #37352f; font-size: 13.5px; font-weight: 500; }
+  .prop-value .pill { background: #ddedea; color: #1c6b54; padding: 2px 9px; border-radius: 4px; font-size: 12.5px; font-weight: 600; }
+  .prop-value .muted { color: #b6b5b1; }
+  .copy-btn { opacity: 0; transition: opacity 0.12s; background: #f1f1ef; border: 1px solid #e3e3e1; color: #6f6e69;
+    border-radius: 5px; font-family: inherit; font-size: 11px; padding: 4px 9px; cursor: pointer; flex-shrink: 0; }
+  .copy-btn:hover { background: #e9e9e7; }
+  .copy-btn.copied { opacity: 1; background: #ddf0e3; border-color: #b9e0c6; color: #0f7b3f; }
+  @media (hover: none) { .copy-btn { opacity: 0.55; } }
+  .notion-photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 6px 8px; }
+  .notion-photo { aspect-ratio: 4/3; background: linear-gradient(135deg, #4a5568, #2d3748); border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; gap: 4px;
+    font-size: 10px; position: relative; overflow: hidden; }
+  .notion-photo > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .notion-photo .icon { font-size: 22px; }
+  .notion-photo .cap { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,0.55); color: #fff;
+    font-size: 9px; padding: 2px 6px; border-radius: 6px; z-index: 1; }
+  .final-stats { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: white;
+    border-radius: 16px; padding: 16px 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); display: none;
+    align-items: center; gap: 22px; z-index: 120; animation: slideUp 0.4s ease-out; }
+  @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+  .final-stats.show { display: flex; }
+  .stat-block { text-align: center; }
+  .stat-block .big { font-size: 22px; font-weight: 700; color: #1a365d; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .stat-block.accent .big { color: #00863a; }
+  .stat-block .lbl { font-size: 10px; color: #718096; margin-top: 4px; letter-spacing: 0.03em; }
+  .stat-divider { width: 1px; height: 36px; background: #e2e8f0; }
+  .stat-arrow { font-size: 20px; color: #00863a; }
+  @media (max-width: 1100px) {
+    .stage { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
+    .side-panel { order: 3; }
+    .phone-wrap { order: 1; }
+    .side-panel.flow-panel { order: 2; }
+  }
+  @media (max-width: 420px) {
+    .phone { width: 100%; max-width: 360px; }
+    header h1 { font-size: 21px; }
+    .notion-body { padding: 16px 18px 36px; }
+    .prop-label { width: 116px; font-size: 12.5px; }
+    .final-stats { gap: 14px; padding: 12px 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="doc-label">負荷試験 現場記録デモ</div>
+    <h1>現場でBotに答えるだけ。戻ったらコピペするだけ。</h1>
+    <div class="subtitle">非常用発電機 模擬負荷試験の記録を、抜け漏れなく・再入力なしに</div>
+  </header>
+  <div class="stage">
+    <div class="side-panel">
+      <h3>このデモについて</h3>
+      <div class="item">現場の作業員が、スマホのチャットBotの質問に沿って答えるだけで、<strong>負荷試験の記録を抜け漏れなく</strong>取れます。</div>
+      <div class="item">取ったデータは自動で<strong>記録データベースに溜まります</strong>。会社に戻ったら、PCで開いてJLAシステムのフォームに<strong>コピペするだけ</strong>。</div>
+      <div class="item note">※ JLAへの提出は従来どおりJLAシステム上で行います。本システムは「現場記録 → コピペ用データ化」に特化しています。</div>
+      <h3 style="margin-top:22px">想定される効果</h3>
+      <div class="stat-big">2〜3時間 → 数分</div>
+      <div class="stat-label">会社に戻ってからの入力・転記作業</div>
+      <div class="stat-big" style="margin-top:14px">抜け漏れ ゼロ</div>
+      <div class="stat-label">撮り忘れ・測り忘れ・記入漏れを防止</div>
+    </div>
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="notch"></div>
+          <div class="status-bar">
+            <span id="clockDisplay">14:32</span>
+            <span style="display:flex;gap:4px;font-size:9px;align-items:center"><span>●●●●</span><span>WiFi</span><span>🔋</span></span>
+          </div>
+          <div class="chat-header">
+            <div class="avatar">負</div>
+            <div><div class="title">負荷試験 記録アシスタント</div><div class="sub">● オンライン</div></div>
+          </div>
+          <div class="chat" id="chat"></div>
+          <div class="input-bar"><div class="icon-btn">📎</div><div class="input-fake">メッセージを入力</div><div class="icon-btn">📷</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="side-panel flow-panel">
+      <h3>記録の流れ</h3>
+      <div class="item">① 現場・設備の確認(登録済みは呼び出し / 新規は登録)</div>
+      <div class="item">② 銘板・試験開始前の撮影</div>
+      <div class="item">③ 各相 電圧・電流の入力</div>
+      <div class="item">④ 排気温度・換気状況の確認</div>
+      <div class="item">⑤ 施設外観の撮影・試験結果の判定</div>
+      <div class="item">⑥ 記録データベースへ保存(コピペ準備OK)</div>
+      <h3 style="margin-top:22px">ポイント</h3>
+      <div class="item"><strong>異常値の自動チェック</strong>: 入力値が基準範囲内か即判定。現場でその場で測り直しを促せます。</div>
+      <div class="item"><strong>設備マスタ呼び出し</strong>: 一度登録した発電機情報は毎回入力不要。呼び出して確認するだけ。</div>
+      <div class="item"><strong>銘板OCR</strong>: 新規の発電機は、銘板を撮るだけで型式・定格を自動読み取り。登録の手間を削減します。</div>
+      <div class="item"><strong>現場写真</strong>: その場で撮った写真が記録ページに自動で添付されます。</div>
+    </div>
+  </div>
+  <div class="controls">
+    <span class="hint">👆 緑のボタンや入力欄をタップして進めてください</span>
+    <button class="ctrl-btn" id="resetBtn">🔁 最初から</button>
+    <div class="timer" id="timer">経過 0:00</div>
+  </div>
+</div>
+
+<div class="notion-overlay" id="notionOverlay">
+  <div class="notion-doc">
+    <div class="notion-topbar">
+      <div class="notion-breadcrumb"><span>🗂️</span><span class="crumb">負荷試験 記録DB</span><span>/</span><span class="crumb" id="crumbTitle"></span></div>
+      <button class="notion-close" id="notionClose">✕</button>
+    </div>
+    <div class="notion-body">
+      <div class="notion-icon">🔋</div>
+      <div class="notion-title" id="notionTitle"></div>
+      <div class="notion-callout">
+        <span class="emoji">💡</span>
+        <span>このデータを<strong>JLAシステムのフォームに、各項目をコピペするだけ</strong>。現場で記録済みなので、会社に戻ってからの再入力(2〜3時間)が不要になります。各行にカーソルを合わせると<strong>「コピー」</strong>が出ます。</span>
+      </div>
+      <button class="copyall" id="copyAll">📋 全項目をまとめてコピー</button>
+      <div id="propList"></div>
+      <div class="prop-section">現場写真</div>
+      <div class="notion-photos" id="notionPhotos"></div>
+    </div>
+  </div>
+</div>
+
+<div class="final-stats" id="finalStats">
+  <div class="stat-block"><div class="big">2〜3<small style="font-size:13px">時間</small></div><div class="lbl">従来：戻ってからの入力</div></div>
+  <div class="stat-arrow">→</div>
+  <div class="stat-block accent"><div class="big">数分</div><div class="lbl">コピペ転記だけ</div></div>
+  <div class="stat-divider"></div>
+  <div class="stat-block"><div class="big">ゼロ</div><div class="lbl">記入・撮影もれ</div></div>
+</div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const resetBtn = document.getElementById('resetBtn');
+  const timerEl = document.getElementById('timer');
+  const clockEl = document.getElementById('clockDisplay');
+  const notionOverlay = document.getElementById('notionOverlay');
+  const notionClose = document.getElementById('notionClose');
+  const finalStats = document.getElementById('finalStats');
+
+  const SAMPLE = { site:'サンプル総合病院', use:'病院', maker:'○○重工業株式会社', model:'XYZ-30K',
+    power:'30 kVA', vRating:'200 V', cRating:'108 A', serial:'23A0567', engine:'ディーゼル / 軽油' };
+  const PHOTO_DEFS = [['銘板','🔌'], ['試験開始前','⚙️'], ['施設外観','🏢']];
+
+  let state, flow, idx = 0, startTime = null, timerInterval = null, timers = [];
+
+  function freshState(){
+    return { site:'', use:'', maker:'', model:'', power:'', vRating:'—', cRating:'—', serial:'—', engine:'—',
+      vR:'198.5', vS:'199.0', vT:'198.8', cR:'32.1', cS:'32.5', cT:'32.3', freq:'50.0 Hz',
+      exhaust:'', vent:'', judge:'異常なし(良)', photos:{}, isNew:false };
+  }
+  function later(fn, ms){ const t = setTimeout(fn, ms); timers.push(t); return t; }
+  function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+  function updateClock(){ const n = new Date(); clockEl.textContent = String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+  updateClock(); setInterval(updateClock, 30000);
+  function getTime(){ const n = new Date(); return String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'); }
+  function startTimer(){ if (timerInterval) return; startTime = Date.now();
+    timerInterval = setInterval(() => { const e = Math.floor((Date.now()-startTime)/1000);
+      timerEl.textContent = '経過 '+Math.floor(e/60)+':'+String(e%60).padStart(2,'0'); }, 250); }
+  function stopTimer(){ if (timerInterval){ clearInterval(timerInterval); timerInterval = null; } }
+  function scrollChat(){ chat.scrollTop = chat.scrollHeight; }
+  function advance(){ idx++; later(play, 380); }
+
+  function addBubble(type, content, isNode){
+    const msg = document.createElement('div'); msg.className = 'msg '+type;
+    if (type === 'bot'){ const a = document.createElement('div'); a.className = 'avatar-small bot'; a.textContent = '負'; msg.appendChild(a); }
+    const time = document.createElement('div'); time.className = 'time'; time.textContent = getTime();
+    if (type === 'user') msg.appendChild(time);
+    if (isNode){ msg.appendChild(content); }
+    else { const b = document.createElement('div'); b.className = 'bubble'; b.textContent = content; msg.appendChild(b); }
+    if (type === 'bot') msg.appendChild(time);
+    chat.appendChild(msg); scrollChat(); return msg;
+  }
+  function addTyping(){ const msg = document.createElement('div'); msg.className = 'msg bot'; msg.id = 'typing-indicator';
+    const a = document.createElement('div'); a.className = 'avatar-small bot'; a.textContent = '負'; msg.appendChild(a);
+    const t = document.createElement('div'); t.className = 'typing'; t.innerHTML = '<span></span><span></span><span></span>'; msg.appendChild(t);
+    chat.appendChild(msg); scrollChat(); }
+  function removeTyping(){ const t = document.getElementById('typing-indicator'); if (t) t.remove(); }
+  function typingThen(fn, ms){ addTyping(); later(() => { removeTyping(); fn(); }, ms || 850); }
+
+  function addPhotoBubble(label, icon){
+    const w = document.createElement('div'); w.className = 'photo-bubble';
+    w.innerHTML = '<div class="photo-preview"><div class="icon">'+icon+'</div><div class="label">'+label+'</div></div>'
+      + '<div class="photo-meta"><span>📷 撮影</span><span>'+getTime()+'</span></div>';
+    addBubble('user', w, true);
+  }
+  function addPhotoBubbleImg(label, dataUrl){
+    const w = document.createElement('div'); w.className = 'photo-bubble';
+    const prev = document.createElement('div'); prev.className = 'photo-preview';
+    const img = document.createElement('img'); img.src = dataUrl; img.alt = label; prev.appendChild(img);
+    const meta = document.createElement('div'); meta.className = 'photo-meta';
+    meta.innerHTML = '<span>📷 '+label+'</span><span>'+getTime()+'</span>';
+    w.appendChild(prev); w.appendChild(meta); addBubble('user', w, true);
+  }
+  function addCard(step){
+    const fields = typeof step.fields === 'function' ? step.fields() : step.fields;
+    const c = document.createElement('div'); c.className = 'card-bubble';
+    const rows = fields.map(f => '<div class="card-field"><span class="label">'+f[0]+'</span><span class="value">'+f[1]+'</span></div>').join('');
+    c.innerHTML = '<div class="card-header">'+step.title+'</div><div class="card-body">'+rows+'</div>';
+    addBubble('bot', c, true);
+  }
+  function addData(){
+    const rows = [['','電圧 (V)','電流 (A)'], ['R相', state.vR, state.cR], ['S相', state.vS, state.cS], ['T相', state.vT, state.cT]];
+    const c = document.createElement('div'); c.className = 'data-card';
+    let html = '<div class="data-header"><span>入力データ確認</span><span>負荷30% / 30min</span></div><div class="data-grid">';
+    rows.forEach((row, ri) => row.forEach((cell, ci) => {
+      if (ri === 0 || ci === 0) html += '<div class="data-cell head">'+(cell||'-')+'</div>';
+      else html += '<div class="data-cell"><div class="v">'+cell+'</div></div>';
+    }));
+    html += '</div><div class="check-row">✓ 各相とも定格範囲内・相間バランス正常</div>';
+    c.innerHTML = html; addBubble('bot', c, true);
+  }
+  function addSaving(step, cb){
+    const w = document.createElement('div'); w.className = 'saving';
+    w.innerHTML = '<div class="spinner"></div><div class="text">'+step.text+'<small>'+step.sub+'</small></div>';
+    addBubble('bot', w, true); later(cb, 1900);
+  }
+
+  function renderQuick(options){
+    const qr = document.createElement('div'); qr.className = 'quick-reply';
+    options.forEach(opt => {
+      const btn = document.createElement('button'); btn.textContent = opt.label;
+      btn.onclick = () => {
+        qr.remove(); addBubble('user', opt.label);
+        if (opt.warn){ typingThen(() => { addBubble('bot', opt.warn); later(() => renderQuick(options), 500); }); }
+        else if (opt.onSelect){ opt.onSelect(); }
+        else { advance(); }
+      };
+      qr.appendChild(btn);
+    });
+    chat.appendChild(qr); scrollChat();
+  }
+  function renderPhoto(wait){
+    const p = document.createElement('div'); p.className = 'photo-prompt';
+    const lbl = document.createElement('label'); lbl.className = 'photo-btn'; lbl.textContent = '📷 写真を選ぶ ― '+wait.label;
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.style.display = 'none';
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = e => { state.photos[wait.key] = e.target.result; p.remove(); addPhotoBubbleImg(wait.label, e.target.result); advance(); };
+      r.readAsDataURL(f);
+    };
+    lbl.appendChild(inp);
+    const skip = document.createElement('button'); skip.className = 'photo-skip'; skip.textContent = 'サンプル画像で進める';
+    skip.onclick = () => { state.photos[wait.key] = null; p.remove(); addPhotoBubble(wait.label, wait.icon); advance(); };
+    p.appendChild(lbl); p.appendChild(skip);
+    chat.appendChild(p); scrollChat();
+  }
+  function renderInput(wait){
+    const node = document.createElement('div'); node.className = 'input-prompt';
+    const lab = document.createElement('div'); lab.className = 'label'; lab.textContent = wait.label; node.appendChild(lab);
+    const ta = document.createElement('textarea'); ta.rows = wait.rows || 1;
+    ta.value = wait.prefill ? (wait.sample || '') : ''; ta.placeholder = wait.placeholder || '';
+    const send = document.createElement('button'); send.className = 'send'; send.textContent = '送信';
+    send.onclick = () => {
+      const val = (ta.value.trim() || wait.sample || '');
+      if (wait.validate){
+        const err = wait.validate(val);
+        if (err){ node.parentNode.remove(); addBubble('user', val); typingThen(() => { addBubble('bot', err); renderInput(wait); }); return; }
+      }
+      node.parentNode.remove(); addBubble('user', val);
+      if (wait.parse) wait.parse(val);
+      if (wait.store) state[wait.store] = wait.transform ? wait.transform(val) : val;
+      advance();
+    };
+    node.appendChild(ta); node.appendChild(send);
+    addBubble('bot', node, true);
+    later(() => ta.focus(), 200);
+  }
+  function renderWait(wait){
+    if (wait.type === 'quick') renderQuick(wait.options);
+    else if (wait.type === 'photo') renderPhoto(wait);
+    else if (wait.type === 'input') renderInput(wait);
+  }
+
+  function applyOCR(){
+    state.maker = '株式会社 東京電機';
+    state.model = 'THGP 150KME';
+    state.power = '130 kVA';
+    state.vRating = '200 V';
+    state.cRating = '376 A';
+    state.freq = '50.0 Hz';
+    state.serial = 'D1476E-1';
+  }
+  function parseLoad(v){
+    const m = (v.match(/\d+(?:\.\d+)?/g) || []).map(Number);
+    if (m.length >= 6){ state.vR=m[0]; state.vS=m[1]; state.vT=m[2]; state.cR=m[3]; state.cS=m[4]; state.cT=m[5]; }
+  }
+  function validateExhaust(v){
+    const n = parseFloat(v);
+    if (isNaN(n)) return '数値で入力してください。(例: 485)';
+    if (n < 400 || n > 550) return '⚠️ '+n+'℃は基準範囲(400〜550℃)から外れています。\n冷却・負荷状態を確認し、再測定してください。';
+    return null;
+  }
+
+  function addCompletion(){
+    const c = document.createElement('div'); c.className = 'completion-card';
+    c.innerHTML = '<div class="completion-title">✨ 記録DBに保存しました</div>'
+      + '<div class="completion-sub">この記録を開いて、JLAシステムにコピペ転記できます。</div>'
+      + '<button id="openRecord">保存データを開く(コピペ用)</button>';
+    addBubble('bot', c, true);
+    later(() => { document.getElementById('openRecord').onclick = openNotion; }, 80);
+    later(openNotion, 1300);
+  }
+
+  // ===== Flow segments =====
+  function segIntro(){
+    return [
+      { kind:'bot', text:'おつかれさまです 👷\n本日の負荷試験、記録を始めましょう。' },
+      { kind:'bot', text:'まず、現場を選んでください。', wait:{ type:'quick', options:[
+          { label:'サンプル総合病院(登録済み)', onSelect: chooseSample },
+          { label:'別の現場を入力', onSelect: chooseNew } ]}},
+    ];
+  }
+  function segSample(){
+    return [
+      { kind:'bot', text:() => '「'+state.site+'」ですね。\n登録済みの発電機情報を呼び出します 🔧' },
+      { kind:'card', title:'🔧 登録済み 発電機情報', fields:() => [
+          ['製造者', state.maker], ['型式', state.model], ['定格出力', state.power],
+          ['定格電圧', state.vRating], ['定格電流', state.cRating], ['製造番号', state.serial] ]},
+      { kind:'bot', text:'この設備で進めますか?', wait:{ type:'quick', options:[ { label:'この設備でOK' }, { label:'修正する' } ]}},
+      { kind:'bot', text:'記録用に、発電機の銘板を撮影してください 📸', wait:{ type:'photo', key:'銘板', label:'発電機 銘板', icon:'🔌' }},
+    ];
+  }
+  function segNew(){
+    return [
+      { kind:'bot', text:'現場名を入力してください。', wait:{ type:'input', label:'現場名', placeholder:'例: △△ホテル', sample:'△△ホテル', store:'site' }},
+      { kind:'bot', text:() => '「'+state.site+'」ですね。\nこの現場は未登録なので、現場と発電機を登録します(次回からは呼び出すだけ) 📝' },
+      { kind:'bot', text:'用途を入力してください。', wait:{ type:'input', label:'用途', placeholder:'例: 病院 / ホテル / 工場', sample:'ホテル', store:'use' }},
+      { kind:'bot', text:'では、発電機の銘板を撮影してください。\n写真から型式・定格を自動で読み取ります 📸', wait:{ type:'photo', key:'銘板', label:'発電機 銘板', icon:'🔌' }},
+      { kind:'ocr', fn: applyOCR, text:'銘板を読み取っています...', sub:'型式・定格・製造者を抽出中' },
+      { kind:'bot', text:'読み取れました ✨ 内容をご確認ください。' },
+      { kind:'card', title:'🔍 銘板から自動読み取り', fields:() => [
+          ['製造者', state.maker], ['型式', state.model], ['定格出力', state.power],
+          ['定格電圧', state.vRating], ['定格電流', state.cRating], ['定格周波数', state.freq], ['装置番号', state.serial] ]},
+      { kind:'bot', text:'この内容で登録します。よろしいですか?', wait:{ type:'quick', options:[ { label:'この内容でOK' }, { label:'修正する' } ]}},
+    ];
+  }
+  function segCommon(){
+    return [
+      { kind:'bot', text:'試験開始前の運転状態を撮影してください 📷', wait:{ type:'photo', key:'試験開始前', label:'試験開始前', icon:'⚙️' }},
+      { kind:'bot', text:'では、負荷30%・30分運転中のデータを入力します。\n各相の電圧・電流を入力してください。', wait:{
+          type:'input', label:'電圧 / 電流(各相)', rows:2, prefill:true,
+          sample:'198.5 / 199.0 / 198.8 V\n32.1 / 32.5 / 32.3 A', parse: parseLoad }},
+      { kind:'data' },
+      { kind:'bot', text:'排気温度を測って入力してください。\n(基準の目安: 400〜550℃)', wait:{
+          type:'input', label:'排気温度 (℃)', placeholder:'例: 485', sample:'485', store:'exhaust',
+          validate: validateExhaust, transform: v => parseFloat(v) + ' ℃' }},
+      { kind:'bot', text:() => '排気温度 '+state.exhaust+'、正常範囲内です ✓\n換気状況はいかがですか?', wait:{ type:'quick', options:[
+          { label:'良好', onSelect:() => { state.vent='良好'; advance(); } },
+          { label:'要注意', onSelect:() => { state.vent='要注意'; advance(); } } ]}},
+      { kind:'bot', text:'最後に、施設の外観を撮影してください 📸\n(撮り忘れが多い1枚です。ここで必ず記録します)', wait:{ type:'photo', key:'施設外観', label:'施設外観', icon:'🏢' }},
+      { kind:'bot', text:'試験中に異常はありましたか?', wait:{ type:'quick', options:[
+          { label:'異常なし', onSelect:() => { state.judge='異常なし(良)'; advance(); } },
+          { label:'異常あり', onSelect:() => { state.judge='要是正'; advance(); } } ]}},
+      { kind:'saving', text:'記録を保存しています...', sub:'写真・データを記録DBに格納中' },
+      { kind:'bot', text:'記録が完了しました ✨\nすべての項目が抜け漏れなく記録されています。' },
+      { kind:'completion' },
+    ];
+  }
+  function chooseSample(){ Object.assign(state, SAMPLE); state.isNew = false;
+    flow.splice(idx+1, 0, ...segSample(), ...segCommon()); advance(); }
+  function chooseNew(){ state.isNew = true;
+    flow.splice(idx+1, 0, ...segNew(), ...segCommon()); advance(); }
+
+  function play(){
+    if (idx >= flow.length){ stopTimer(); return; }
+    const step = flow[idx];
+    const txt = typeof step.text === 'function' ? step.text() : step.text;
+    if (step.kind === 'bot'){
+      typingThen(() => { addBubble('bot', txt); if (step.wait) renderWait(step.wait); else { idx++; later(play, 450); } });
+    } else if (step.kind === 'card'){
+      typingThen(() => { addCard(step); idx++; later(play, 500); });
+    } else if (step.kind === 'data'){
+      typingThen(() => { addData(); idx++; later(play, 550); }, 950);
+    } else if (step.kind === 'ocr'){
+      addSaving(step, () => { step.fn(); idx++; play(); });
+    } else if (step.kind === 'saving'){
+      addSaving(step, () => { idx++; play(); });
+    } else if (step.kind === 'completion'){
+      typingThen(() => { addCompletion(); stopTimer(); }, 700);
+    }
+  }
+
+  // ===== Notion record =====
+  function buildRecord(){
+    return [
+      { section:'現場情報', items:[
+        ['📍','現場名', state.site], ['🏥','用途', state.use], ['📅','点検年月日','令和8年6月10日(水)'] ]},
+      { section:'発電機(' + (state.isNew ? '今回登録・銘板から読取' : '登録済みマスタ') + ')', items:[
+        ['🏭','製造者', state.maker], ['🔖','型式', state.model], ['⚡','定格出力', state.power],
+        ['🔌','定格電圧', state.vRating], ['🔋','定格電流', state.cRating], ['#️⃣','製造番号', state.serial],
+        ['🛢️','原動機 / 燃料', state.engine] ]},
+      { section:'運転データ(負荷30% / 連続30分)', items:[
+        ['🔺','電圧 R相', state.vR+' V'], ['🔺','電圧 S相', state.vS+' V'], ['🔺','電圧 T相', state.vT+' V'],
+        ['🔻','電流 R相', state.cR+' A'], ['🔻','電流 S相', state.cS+' A'], ['🔻','電流 T相', state.cT+' A'],
+        ['〰️','周波数', state.freq], ['🌡️','排気温度', state.exhaust], ['⏱️','運転時間','30 分'], ['💨','換気状況', state.vent] ]},
+      { section:'判定・実施者', items:[
+        ['✅','総合判定', state.judge, 'pill'],
+        ['👷','点検実施者(主任)','田中 太郎(消防設備点検資格者 第1種)'],
+        ['👷','点検実施者(副)','山田 次郎(消防設備士 乙種)'] ]},
+    ];
+  }
+  function openNotion(){
+    document.getElementById('notionTitle').textContent = state.site + ' ― 模擬負荷試験';
+    document.getElementById('crumbTitle').textContent = state.site + ' 2026-06-10';
+    const list = document.getElementById('propList'); list.innerHTML = '';
+    buildRecord().forEach(group => {
+      const sec = document.createElement('div'); sec.className = 'prop-section'; sec.textContent = group.section; list.appendChild(sec);
+      group.items.forEach(it => {
+        const [ico, label, value, style] = it;
+        const display = (value === '—') ? '<span class="muted">未登録</span>' : (style === 'pill' ? '<span class="pill">'+value+'</span>' : value);
+        const row = document.createElement('div'); row.className = 'prop-row';
+        row.innerHTML = '<div class="prop-label"><span class="pico">'+ico+'</span>'+label+'</div><div class="prop-value">'+display+'</div>';
+        const btn = document.createElement('button'); btn.className = 'copy-btn'; btn.textContent = 'コピー';
+        btn.onclick = () => copyText(value, btn, 'コピー');
+        row.appendChild(btn); list.appendChild(row);
+      });
+    });
+    const ph = document.getElementById('notionPhotos'); ph.innerHTML = '';
+    PHOTO_DEFS.forEach(([key, icon]) => {
+      const tile = document.createElement('div'); tile.className = 'notion-photo';
+      const img = state.photos[key];
+      if (img){ tile.innerHTML = '<img src="'+img+'" alt="'+key+'"><span class="cap">'+key+'</span>'; }
+      else { tile.innerHTML = '<span class="icon">'+icon+'</span><span>'+key+'</span>'; }
+      ph.appendChild(tile);
+    });
+    notionOverlay.classList.add('show'); finalStats.classList.add('show');
+  }
+  function closeNotion(){ notionOverlay.classList.remove('show'); }
+  async function copyText(text, btn, restore){
+    try { await navigator.clipboard.writeText(text); }
+    catch(e){ try { const ta = document.createElement('textarea'); ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); } catch(e2){} }
+    btn.textContent = '✓ コピー済'; btn.classList.add('copied');
+    later(() => { btn.textContent = restore; btn.classList.remove('copied'); }, 1200);
+  }
+  document.getElementById('copyAll').onclick = function(){
+    const lines = []; buildRecord().forEach(g => g.items.forEach(it => lines.push(it[1] + '\t' + it[2])));
+    copyText(lines.join('\n'), this, '📋 全項目をまとめてコピー');
+  };
+  notionClose.onclick = closeNotion;
+  notionOverlay.onclick = (e) => { if (e.target === notionOverlay) closeNotion(); };
+
+  function start(){ clearTimers(); state = freshState(); flow = segIntro(); idx = 0; chat.innerHTML = '';
+    closeNotion(); finalStats.classList.remove('show'); timerEl.textContent = '経過 0:00'; stopTimer(); startTimer(); later(play, 600); }
+  resetBtn.onclick = start;
+  start();
+</script>
+</body>
+</html>
