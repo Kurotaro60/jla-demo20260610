@@ -179,10 +179,9 @@
   .notion-photo .icon { font-size: 22px; }
   .notion-photo .cap { position: absolute; left: 6px; bottom: 6px; background: rgba(0,0,0,0.55); color: #fff;
     font-size: 9px; padding: 2px 6px; border-radius: 6px; z-index: 1; }
-  .final-stats { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: white;
-    border-radius: 16px; padding: 16px 26px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); display: none;
-    align-items: center; gap: 22px; z-index: 120; animation: slideUp 0.4s ease-out; }
-  @keyframes slideUp { from { transform: translate(-50%, 30px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+  .final-stats { margin: 28px auto 4px; max-width: 480px; background: #f6faf8; border: 1px solid #e3ebe7;
+    border-radius: 14px; padding: 16px 22px; display: none; align-items: center; justify-content: center;
+    gap: 22px; animation: fadeIn 0.4s ease-out; }
   .final-stats.show { display: flex; }
   .stat-block { text-align: center; }
   .stat-block .big { font-size: 22px; font-weight: 700; color: #1a365d; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -283,16 +282,16 @@
       <div id="propList"></div>
       <div class="prop-section">現場写真</div>
       <div class="notion-photos" id="notionPhotos"></div>
+
+      <div class="final-stats" id="finalStats">
+        <div class="stat-block"><div class="big">2〜3<small style="font-size:13px">時間</small></div><div class="lbl">従来：戻ってからの入力</div></div>
+        <div class="stat-arrow">→</div>
+        <div class="stat-block accent"><div class="big">数分</div><div class="lbl">コピペ転記だけ</div></div>
+        <div class="stat-divider"></div>
+        <div class="stat-block"><div class="big">ゼロ</div><div class="lbl">記入・撮影もれ</div></div>
+      </div>
     </div>
   </div>
-</div>
-
-<div class="final-stats" id="finalStats">
-  <div class="stat-block"><div class="big">2〜3<small style="font-size:13px">時間</small></div><div class="lbl">従来：戻ってからの入力</div></div>
-  <div class="stat-arrow">→</div>
-  <div class="stat-block accent"><div class="big">数分</div><div class="lbl">コピペ転記だけ</div></div>
-  <div class="stat-divider"></div>
-  <div class="stat-block"><div class="big">ゼロ</div><div class="lbl">記入・撮影もれ</div></div>
 </div>
 
 <script>
